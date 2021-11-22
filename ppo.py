@@ -60,7 +60,8 @@ def train():
     )
 
     i = 0
-    target_csv = f"{env_name}_{num_levels}_run.csv"
+    base_path = "results"
+    target_csv = Path(base_path) / f"{env_name}_{num_levels}_run.csv"
     
     while Path(target_csv).exists():
         i += 1
@@ -149,5 +150,5 @@ def train():
             }
         )
     print('Completed training!')
-    torch.save(policy.state_dict, 'checkpoint{env_name}_{num_levels}_run{i}.pt')
+    torch.save(policy.state_dict, Path(base_path) / 'checkpoint{env_name}_{num_levels}_run{i}.pt')
 train()
