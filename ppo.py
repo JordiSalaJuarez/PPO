@@ -9,7 +9,7 @@ from logger import CSVOutputFormat
 from pathlib import Path
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 
 
@@ -138,16 +138,16 @@ def train():
                 optimizer.step()
                 optimizer.zero_grad()
 
-    # Update stats
-    step += num_envs * num_steps
-    print(f'Step: {step}\tMean reward: {storage.get_reward()}')
-    logger.writekvs(
-        {
-            "mean_reward": storage.get_reward(),
-            "reward": storage.get_reward(normalized_reward=False),
-            "step": step,
-        }
-    )
+        # Update stats
+        step += num_envs * num_steps
+        print(f'Step: {step}\tMean reward: {storage.get_reward()}')
+        logger.writekvs(
+            {
+                "mean_reward": storage.get_reward(),
+                "reward": storage.get_reward(normalized_reward=False),
+                "step": step,
+            }
+        )
     print('Completed training!')
     torch.save(policy.state_dict, 'checkpoint{env_name}_{num_levels}_run{i}.pt')
 train()
