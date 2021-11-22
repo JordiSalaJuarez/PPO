@@ -8,10 +8,14 @@ from utils import make_env, Storage, orthogonal_init
 from logger import CSVOutputFormat
 from pathlib import Path
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+
 
 
 def train():
-
+    logging.debug('Started Training')
     # Hyperparameters
     total_steps = 8e6
     num_envs = 32
@@ -67,9 +71,11 @@ def train():
     # Run training
     obs = env.reset()
     step = 0
+    logging.debug('Entering main loop')
     while step < total_steps:
         # Use policy to collect data for num_steps steps
         policy.eval()
+        logging.debug('Policy eval')
         for _ in range(num_steps):
             # Use policy
             action, log_prob, value, entropy = policy.act(obs)
@@ -92,6 +98,7 @@ def train():
 
         # Optimize policy
         policy.train()
+        logging.debug('Policy train')
         for epoch in range(num_epochs):
 
             # Iterate over batches of transitions
@@ -143,3 +150,4 @@ def train():
     )
     print('Completed training!')
     torch.save(policy.state_dict, 'checkpoint{env_name}_{num_levels}_run{i}.pt')
+train()
