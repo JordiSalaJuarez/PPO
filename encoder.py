@@ -1,3 +1,10 @@
+import torch.nn as nn
+from utils import orthogonal_init
+
+class Flatten(nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1)
+
 class Encoder(nn.Module):
   def __init__(self, in_channels, feature_dim):
     super().__init__()

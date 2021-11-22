@@ -8,9 +8,7 @@ from utils import make_env, Storage, orthogonal_init
 from logger import CSVOutputFormat
 from pathlib import Path
 
-class Flatten(nn.Module):
-    def forward(self, x):
-        return x.view(x.size(0), -1)
+
 
 def train():
 
