@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from utils import make_env, Storage, orthogonal_init
 from logger import CSVOutputFormat
 from pathlib import Path
+from datetime import datetime
 
 import logging
 logging.basicConfig(level=logging.WARNING)
@@ -15,6 +16,7 @@ logging.basicConfig(level=logging.WARNING)
 
 
 def train():
+    start = datetime.now()
     logging.debug('Started Training')
     # Hyperparameters
     total_steps = 8e6
@@ -22,7 +24,7 @@ def train():
     num_levels = 10
     num_steps = 256
     num_epochs = 3
-    batch_size = 512
+    batch_size = 128
     eps = .2
     grad_eps = .5
     value_coef = .5
@@ -144,9 +146,11 @@ def train():
         print(f'Step: {step}\tMean reward: {storage.get_reward()}')
         logger.writekvs(
             {
-                "mean_reward": storage.get_reward(),
-                "reward": storage.get_reward(normalized_reward=False),
+                "mean_reward": float(storage.get_reward()),
+                "reward": float(storage.get_reward(normalized_reward=False)),
                 "step": step,
+                "time": (datetime.now() - start).total_seconds()
+
             }
         )
     print('Completed training!')
