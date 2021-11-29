@@ -15,8 +15,8 @@ import uuid
 
 
 
-
 def train():
+    tag = uuid.uuid1()
     start = datetime.now()
     logging.debug('Started Training')
     # Hyperparameters
@@ -61,7 +61,7 @@ def train():
 
 
     base_path = "results"
-    target_csv = Path(base_path) / f"{env_name}_{num_levels}_{uuid.uudi1()}.csv"
+    target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
     logger = CSVOutputFormat(target_csv)
 
     # Run training
@@ -142,9 +142,8 @@ def train():
                 "reward": float(storage.get_reward(normalized_reward=False)),
                 "step": step,
                 "time": (datetime.now() - start).total_seconds()
-
             }
         )
     print('Completed training!')
-    torch.save(policy.state_dict, Path(base_path) / 'checkpoint{env_name}_{num_levels}_run{i}.pt')
+    torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_{tag}.pt')
 train()
