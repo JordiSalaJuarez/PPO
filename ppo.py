@@ -11,6 +11,7 @@ from datetime import datetime
 
 import logging
 logging.basicConfig(level=logging.WARNING)
+import uuid
 
 
 
@@ -58,14 +59,9 @@ def train():
         num_envs
     )
 
-    i = 0
+
     base_path = "results"
-    target_csv = Path(base_path) / f"{env_name}_{num_levels}_run.csv"
-    
-    while Path(target_csv).exists():
-        i += 1
-        target_csv = f"{env_name}_{num_levels}_run{i}.csv"
-        
+    target_csv = Path(base_path) / f"{env_name}_{num_levels}_{uuid.uudi1()}.csv"
     logger = CSVOutputFormat(target_csv)
 
     # Run training
@@ -78,7 +74,7 @@ def train():
         logging.debug('Policy eval')
         for _ in range(num_steps):
             # Use policy
-            action, log_prob, value, entropy = policy.act(obs)
+            action, log_prob, value = policy.act(obs)
             
             # Take step in environment
             next_obs, reward, done, info = env.step(action)
@@ -90,7 +86,7 @@ def train():
             obs = next_obs
 
         # Add the last observation to collected data
-        _, _, value, _ = policy.act(obs)
+        _, _, value = policy.act(obs)
         storage.store_last(obs, value)
 
         # Compute return and advantage
@@ -107,13 +103,12 @@ def train():
                 b_obs, b_action, b_log_prob, b_value, b_returns, b_advantage = batch
 
                 # Get current policy outputs
-                new_dist, new_value, entropy = policy(b_obs)
-                actions, log_probs, _, entropy = policy.act(b_obs)
+                new_dist, new_value = policy(b_obs)
                 new_log_prob = new_dist.log_prob(b_action)
 
                 # Clipped policy objective
                 # calculate surrogates
-                ratio = torch.exp(log_probs - b_log_prob)
+                ratio = torch.exp(new_log_prob - b_log_prob)
                 surrogate_1 = b_advantage * ratio
                 surrogate_2 = b_advantage * torch.clamp(ratio, 1-eps, 1+eps)
                 pi_loss = -torch.min(surrogate_1, surrogate_2).mean()  # Policy gradient objective, also L^{PG} or PG loss
@@ -125,7 +120,7 @@ def train():
                 value_loss =  0.5 * torch.mean(torch.max(value_loss_clipped, value_loss_unclipped))
 
                 # Entropy loss
-                entropy_loss = entropy.mean()
+                entropy_loss = new_dist.entropy().mean()
 
                 # Backpropagate losses
                 loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
