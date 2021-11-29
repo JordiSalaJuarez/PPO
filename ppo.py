@@ -24,28 +24,26 @@ def train():
     num_levels = 10
     num_steps = 256
     num_epochs = 3
-    batch_size = 128
+    n_features = 256
+    batch_size = 512
     eps = .2
     grad_eps = .5
-    value_coef = .5
+    value_coef = .1
     entropy_coef = .01
-
-    # other config. Values obtained from https://github.com/DarylRodrigo/rl_lib
-    in_channels = 3 # TODO check this values
-    feature_dim = 64
 
 
     env_name = "starpilot"
-    num_levels = 100 
+    num_levels = 500
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
+    env = make_env(num_envs,env_name=env_name,start_level=1, num_levels=num_levels, use_backgrounds=False )
     # print('Observation space:', env.observation_space)
     # print('Action space:', env.action_space.n)
 
     # Define network
-    encoder = Encoder(in_channels, feature_dim)
-    policy = Policy(encoder, feature_dim, env.action_space.n)
+    in_channels = env.observation_space.shape[0]
+    encoder = Encoder(in_channels, n_features)
+    policy = Policy(encoder, n_features, env.action_space.n)
     policy.cuda()
 
     # Define optimizer
