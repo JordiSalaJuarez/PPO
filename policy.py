@@ -12,11 +12,11 @@ class Policy(nn.Module):
   def act(self, x):
     with torch.no_grad():
       x = x.cuda().contiguous()
-      dist, value, entropy = self.forward(x)
+      dist, value = self.forward(x)
       action = dist.sample()
       log_prob = dist.log_prob(action)
     
-    return action, log_prob, value, entropy
+    return action, log_prob, value
 
   def forward(self, x):
     x = self.encoder(x)
@@ -24,4 +24,4 @@ class Policy(nn.Module):
     value = self.value(x).squeeze(1)
     dist = torch.distributions.Categorical(logits=logits)
 
-    return dist, value, dist.entropy()
+    return dist, value

@@ -11,11 +11,12 @@ from datetime import datetime
 
 import logging
 logging.basicConfig(level=logging.WARNING)
-
+import uuid
 
 
 
 def train():
+    tag = uuid.uuid1()
     start = datetime.now()
     logging.debug('Started Training')
     # Hyperparameters
@@ -24,29 +25,26 @@ def train():
     num_levels = 10
     num_steps = 256
     num_epochs = 3
-    batch_size = 128
+    n_features = 256
+    batch_size = 512
     eps = .2
     grad_eps = .5
-    value_coef = .5
+    value_coef = .1
     entropy_coef = .01
-
-    # other config. Values obtained from https://github.com/DarylRodrigo/rl_lib
-    in_channels = 3 # TODO check this values
-    feature_dim = 64
-    entropy_beta = 0.01
 
 
     env_name = "starpilot"
-    num_levels = 100 
+    num_levels = 500
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
+    env = make_env(num_envs,env_name=env_name,start_level=1, num_levels=num_levels, use_backgrounds=False )
     # print('Observation space:', env.observation_space)
     # print('Action space:', env.action_space.n)
 
     # Define network
-    encoder = Encoder(in_channels, feature_dim)
-    policy = Policy(encoder, feature_dim, env.action_space.n)
+    in_channels = env.observation_space.shape[0]
+    encoder = Encoder(in_channels, n_features)
+    policy = Policy(encoder, n_features, env.action_space.n)
     policy.cuda()
 
     # Define optimizer
@@ -61,14 +59,9 @@ def train():
         num_envs
     )
 
-    i = 0
+
     base_path = "results"
-    target_csv = Path(base_path) / f"{env_name}_{num_levels}_run.csv"
-    
-    while Path(target_csv).exists():
-        i += 1
-        target_csv = f"{env_name}_{num_levels}_run{i}.csv"
-        
+    target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
     logger = CSVOutputFormat(target_csv)
 
     # Run training
@@ -81,7 +74,7 @@ def train():
         logging.debug('Policy eval')
         for _ in range(num_steps):
             # Use policy
-            action, log_prob, value, entropy = policy.act(obs)
+            action, log_prob, value = policy.act(obs)
             
             # Take step in environment
             next_obs, reward, done, info = env.step(action)
@@ -93,7 +86,7 @@ def train():
             obs = next_obs
 
         # Add the last observation to collected data
-        _, _, value, _ = policy.act(obs)
+        _, _, value = policy.act(obs)
         storage.store_last(obs, value)
 
         # Compute return and advantage
@@ -110,13 +103,12 @@ def train():
                 b_obs, b_action, b_log_prob, b_value, b_returns, b_advantage = batch
 
                 # Get current policy outputs
-                new_dist, new_value, entropy = policy(b_obs)
-                actions, log_probs, _, entropy = policy.act(b_obs)
+                new_dist, new_value = policy(b_obs)
                 new_log_prob = new_dist.log_prob(b_action)
 
                 # Clipped policy objective
                 # calculate surrogates
-                ratio = torch.exp(log_probs - b_log_prob)
+                ratio = torch.exp(new_log_prob - b_log_prob)
                 surrogate_1 = b_advantage * ratio
                 surrogate_2 = b_advantage * torch.clamp(ratio, 1-eps, 1+eps)
                 pi_loss = -torch.min(surrogate_1, surrogate_2).mean()  # Policy gradient objective, also L^{PG} or PG loss
@@ -128,10 +120,10 @@ def train():
                 value_loss =  0.5 * torch.mean(torch.max(value_loss_clipped, value_loss_unclipped))
 
                 # Entropy loss
-                entropy_loss = entropy.mean()
+                entropy_loss = new_dist.entropy().mean()
 
                 # Backpropagate losses
-                loss = pi_loss + value_loss - entropy_beta*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
+                loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
                 loss.backward()
 
                 # Clip gradients
@@ -150,9 +142,8 @@ def train():
                 "reward": float(storage.get_reward(normalized_reward=False)),
                 "step": step,
                 "time": (datetime.now() - start).total_seconds()
-
             }
         )
     print('Completed training!')
-    torch.save(policy.state_dict, Path(base_path) / 'checkpoint{env_name}_{num_levels}_run{i}.pt')
+    torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_{tag}.pt')
 train()
