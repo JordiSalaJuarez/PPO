@@ -33,7 +33,6 @@ def train():
     # other config. Values obtained from https://github.com/DarylRodrigo/rl_lib
     in_channels = 3 # TODO check this values
     feature_dim = 64
-    entropy_beta = 0.01
 
 
     env_name = "starpilot"
@@ -131,7 +130,7 @@ def train():
                 entropy_loss = entropy.mean()
 
                 # Backpropagate losses
-                loss = pi_loss + value_loss - entropy_beta*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
+                loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
                 loss.backward()
 
                 # Clip gradients
