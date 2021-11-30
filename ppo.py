@@ -66,7 +66,7 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
 
     return parser.parse_args().__dict__
 
-def train(*,     
+def train(PPO3d=True, *,     
     total_steps: int,
     num_envs: int,
     num_levels: int,
@@ -79,7 +79,8 @@ def train(*,
     value_coef: float,
     entropy_coef: float,
     use_impala: bool,
-    env_name: str):
+    env_name: str,
+    ):
 
     tag = uuid.uuid1()
     start = datetime.now()
@@ -183,6 +184,7 @@ def train(*,
                 # Clipped policy objective
                 # calculate surrogates
                 ratio = torch.exp(new_log_prob - b_log_prob)
+
                 surrogate_1 = b_advantage * ratio
                 surrogate_2 = b_advantage * torch.clamp(ratio, 1-eps, 1+eps)
                 pi_loss = -torch.min(surrogate_1, surrogate_2).mean()  # Policy gradient objective, also L^{PG} or PG loss
@@ -196,8 +198,15 @@ def train(*,
                 # Entropy loss
                 entropy_loss = new_dist.entropy().mean()
 
-                # Backpropagate losses
-                loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
+                # PPO3d
+                if PPO3d:
+                    loss_pg = (b_log_prob * b_advantage).mean()
+                    pg_coef = 0.1
+                    loss = pi_loss - entropy_coef*entropy_loss + value_coef*value_loss + loss_pg * pg_coef
+                    # loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss
+                else:
+                    # Backpropagate losses
+                    loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
                 loss.backward()
 
                 # Clip gradients
