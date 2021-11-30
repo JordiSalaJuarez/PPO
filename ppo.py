@@ -1,4 +1,5 @@
 from encoder import Encoder
+from impala import ImpalaModel
 from policy import Policy
 from utils import make_env
 import torch
@@ -8,6 +9,7 @@ from utils import make_env, Storage, orthogonal_init
 from logger import CSVOutputFormat
 from pathlib import Path
 from datetime import datetime
+import json
 
 import logging
 logging.basicConfig(level=logging.WARNING)
@@ -19,10 +21,11 @@ def train():
     tag = uuid.uuid1()
     start = datetime.now()
     logging.debug('Started Training')
+
     # Hyperparameters
     total_steps = 8e6
     num_envs = 32
-    num_levels = 10
+    num_levels = 500
     num_steps = 256
     num_epochs = 3
     n_features = 256
@@ -31,10 +34,27 @@ def train():
     grad_eps = .5
     value_coef = .1
     entropy_coef = .01
-
+    use_impala = True
 
     env_name = "starpilot"
-    num_levels = 500
+
+    parameters = {'total_steps': total_steps,
+                  'num_envs': num_envs,
+                  'num_levels': num_levels,
+                  'num_steps': num_steps,
+                  'num_epochs': num_epochs,
+                  'n_features': n_features,
+                  'batch_size': batch_size,
+                  'eps': eps,
+                  'value_coef': value_coef,
+                  'entropy_coef': entropy_coef,
+                  'use_impala': use_impala,
+                  'env_name': env_name}
+
+    # Save hyperparams in json file, associated to test trough tag
+    with open(f'hyperparameters_{tag}.json', 'w') as outfile:
+        json.dump(parameters, outfile, indent=4)
+
     # Define environment
     # check the utils.py file for info on arguments
     env = make_env(num_envs,env_name=env_name,start_level=1, num_levels=num_levels, use_backgrounds=False )
@@ -43,7 +63,10 @@ def train():
 
     # Define network
     in_channels = env.observation_space.shape[0]
-    encoder = Encoder(in_channels, n_features)
+    if use_impala:
+        encoder = ImpalaModel(in_channels, n_features)
+    else:
+        encoder = Encoder(in_channels, n_features)
     policy = Policy(encoder, n_features, env.action_space.n)
     policy.cuda()
 
@@ -61,7 +84,11 @@ def train():
 
 
     base_path = "results"
-    target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
+    if use_impala:
+        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
+    else:
+        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
+
     logger = CSVOutputFormat(target_csv)
 
     # Run training
@@ -145,5 +172,8 @@ def train():
             }
         )
     print('Completed training!')
-    torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_{tag}.pt')
+    if use_impala:
+        torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_impala_{tag}.pt')
+    else:
+        torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_{tag}.pt')
 train()
