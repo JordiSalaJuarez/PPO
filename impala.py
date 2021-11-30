@@ -1,11 +1,4 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import imageio
-import matplotlib.pyplot as plt
-from utils import make_env, Storage, orthogonal_init
-from IPython.display import clear_output
-from utils import make_env, Storage, orthogonal_init
 
 """
 Used implementation from https://github.com/joonleesky/train-procgen-pytorch/blob/master/common/model.py
