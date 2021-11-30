@@ -15,8 +15,6 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 import uuid
 
-
-
 def train():
     tag = uuid.uuid1()
     start = datetime.now()
@@ -52,7 +50,7 @@ def train():
                   'env_name': env_name}
 
     # Save hyperparams in json file, associated to test trough tag
-    with open(f'hyperparameters_{tag}.json', 'w') as outfile:
+    with open(f'results/hyperparameters_{tag}.json', 'w') as outfile:
         json.dump(parameters, outfile, indent=4)
 
     # Define environment
