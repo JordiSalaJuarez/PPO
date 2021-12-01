@@ -10,6 +10,7 @@ from logger import CSVOutputFormat
 from pathlib import Path
 from datetime import datetime
 import json
+import imageio
 
 import logging
 logging.basicConfig(level=logging.WARNING)
@@ -105,9 +106,8 @@ def train(PPO3d=True, *,
 
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name,start_level=1, num_levels=num_levels, use_backgrounds=False )
-    # print('Observation space:', env.observation_space)
-    # print('Action space:', env.action_space.n)
+    env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
+    eval_env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
 
     # Define network
     in_channels = env.observation_space.shape[0]
@@ -139,6 +139,32 @@ def train(PPO3d=True, *,
 
     logger = CSVOutputFormat(target_csv)
 
+
+    def save_clip(name, policy):
+        frames = []
+        total_reward = []
+
+        # Evaluate policy
+        policy.eval()
+        for _ in range(512):
+            # Use policy
+            action, log_prob, value = policy.act(obs)
+
+            # Take step in environment
+            obs, reward, done, info = eval_env.step(action)
+            total_reward.append(torch.Tensor(reward))
+
+            # Render environment and store
+            frame = (torch.Tensor(eval_env.render(mode='rgb_array'))*255.).byte()
+            frames.append(frame)
+
+        # Calculate average return
+        total_reward = torch.stack(total_reward).sum(0).mean(0)
+
+        # Save frames as video
+        frames = torch.stack(frames)
+        imageio.mimsave(f'{base_path}/{name}.mp4', frames, fps=25)
+
     # Run training
     obs = env.reset()
     step = 0
@@ -159,6 +185,10 @@ def train(PPO3d=True, *,
             
             # Update current observation
             obs = next_obs
+
+
+        if step % 1_000_000 == 0 and step > 0:
+            save_clip("video_{env_name}_{num_levels}_{tag}_{step//1_000_000}", policy)
 
         # Add the last observation to collected data
         _, _, value = policy.act(obs)
