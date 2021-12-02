@@ -1,5 +1,5 @@
 {
-    "total_steps": 8000000.0,
+    "total_steps": 8000000,
     "num_envs": 32,
     "num_levels": 500,
     "num_steps": 256,
@@ -9,6 +9,6 @@
     "eps": 0.2,
     "value_coef": 0.1,
     "entropy_coef": 0.01,
-    "use_impala": true,
-    "env_name": "starpilot"
+    "use_impala": false,
+    "env_name": "jumper"
 }

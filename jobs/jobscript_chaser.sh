@@ -8,4 +8,4 @@
  #BSUB -o logs/%J.out
  #BSUB -e logs/%J.err
  echo "Running script..."
- poetry run python ppo.py
+ poetry run python -m ppo --env_name chaser

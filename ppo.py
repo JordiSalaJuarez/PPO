@@ -67,7 +67,7 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
 
     return parser.parse_args().__dict__
 
-def train(PPO3d=True, *,     
+def train(POP3d=False, *,     
     total_steps: int,
     num_envs: int,
     num_levels: int,
@@ -141,6 +141,7 @@ def train(PPO3d=True, *,
 
 
     def save_clip(name, policy):
+        obs = eval_env.reset()
         frames = []
         total_reward = []
 
@@ -188,7 +189,7 @@ def train(PPO3d=True, *,
 
 
         if step % 1_000_000 == 0 and step > 0:
-            save_clip("video_{env_name}_{num_levels}_{tag}_{step//1_000_000}", policy)
+            save_clip(f"clip_{env_name}_{num_levels}_{tag}_{step//1_000_000}", policy)
 
         # Add the last observation to collected data
         _, _, value = policy.act(obs)
@@ -229,7 +230,7 @@ def train(PPO3d=True, *,
                 entropy_loss = new_dist.entropy().mean()
 
                 # PPO3d
-                if PPO3d:
+                if POP3d:
                     loss_pg = (b_log_prob * b_advantage).mean()
                     pg_coef = 0.1
                     loss = pi_loss - entropy_coef*entropy_loss + value_coef*value_loss + loss_pg * pg_coef
