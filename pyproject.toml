@@ -15,6 +15,9 @@ mypy = "^0.910"
 black = "^21.11b0"
 ipykernel = "^6.5.0"
 pylint = "^2.12.1"
+matplotlib = "^3.5.0"
+tqdm = "^4.62.3"
+rope = "^0.22.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
