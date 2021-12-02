@@ -385,6 +385,23 @@ optional = false
 python-versions = ">=3.7"
 
 [[package]]
+name = "kornia"
+version = "0.6.1"
+description = "Open Source Differentiable Computer Vision Library for PyTorch"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+packaging = "*"
+torch = ">=1.8.1"
+
+[package.extras]
+all = ["accelerate (==0.5.1)", "dataclasses", "pytest (==6.2.5)", "pytest-flake8 (==1.0.7)", "pytest-cov (==3.0.0)", "pytest-mypy (==0.8.1)", "pytest-xdist (==2.4.0)", "autopep8", "pydocstyle", "pre-commit (>=2.0)", "yapf", "isort", "numpy", "scipy"]
+dev = ["pytest (==6.2.5)", "pytest-flake8 (==1.0.7)", "pytest-cov (==3.0.0)", "pytest-mypy (==0.8.1)", "pytest-xdist (==2.4.0)", "autopep8", "pydocstyle", "pre-commit (>=2.0)", "yapf", "isort", "numpy", "scipy"]
+x = ["accelerate (==0.5.1)", "dataclasses"]
+
+[[package]]
 name = "lazy-object-proxy"
 version = "1.6.0"
 description = "A fast and thorough lazy object proxy."
@@ -486,7 +503,7 @@ python-versions = ">=3.7"
 name = "packaging"
 version = "21.3"
 description = "Core utilities for Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -649,7 +666,7 @@ typing-extensions = {version = ">=3.10.0", markers = "python_version < \"3.10\""
 name = "pyparsing"
 version = "3.0.6"
 description = "Python parsing module"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -818,7 +835,7 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,>=2.7"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "2e33aec0177615e230b1422db527133bc794dfefa42d75863168a4dde16a60ee"
+content-hash = "2eb079776542030c6ac7c755deb29a7d493819ebaa043fd43f1a3eb524b3fc4b"
 
 [metadata.files]
 appnope = [
@@ -1067,6 +1084,10 @@ kiwisolver = [
     {file = "kiwisolver-1.3.2-pp37-pypy37_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:25405f88a37c5f5bcba01c6e350086d65e7465fd1caaf986333d2a045045a223"},
     {file = "kiwisolver-1.3.2-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:bcadb05c3d4794eb9eee1dddf1c24215c92fb7b55a80beae7a60530a91060560"},
     {file = "kiwisolver-1.3.2.tar.gz", hash = "sha256:fc4453705b81d03568d5b808ad8f09c77c47534f6ac2e72e733f9ca4714aa75c"},
+]
+kornia = [
+    {file = "kornia-0.6.1-py2.py3-none-any.whl", hash = "sha256:c896398fd2c3b4db08c4927a88f859925a24491d2e25476f62d8d4fa5a5a2a7e"},
+    {file = "kornia-0.6.1.tar.gz", hash = "sha256:f638fb3309f88666545866c162f510b6d485fd8f7131d5570d4e6c0d295fdcd6"},
 ]
 lazy-object-proxy = [
     {file = "lazy-object-proxy-1.6.0.tar.gz", hash = "sha256:489000d368377571c6f982fba6497f2aa13c6d1facc40660963da62f5c379726"},
@@ -1552,7 +1573,6 @@ traitlets = [
 ]
 typing-extensions = [
     {file = "typing_extensions-4.0.0-py3-none-any.whl", hash = "sha256:829704698b22e13ec9eaf959122315eabb370b0884400e9818334d8b677023d9"},
-    {file = "typing_extensions-4.0.0.tar.gz", hash = "sha256:2cdf80e4e04866a9b3689a51869016d36db0814d84b8d8a568d22781d45d27ed"},
 ]
 wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},

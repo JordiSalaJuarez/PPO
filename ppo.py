@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 import json
 import imageio
-
+import kornia
 import logging
 logging.basicConfig(level=logging.WARNING)
 import uuid
@@ -148,6 +148,7 @@ def train(POP3d=False, *,
         policy.eval()
         for _ in range(512):
             # Use policy
+            obs = kornia.color_jitter(obs)
             action, log_prob, value = policy.act(obs)
 
             # Take step in environment
