@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 import json
 import imageio
-import kornia
+from kornia.augmentation import RandomCrop, ColorJitter
 import logging
 logging.basicConfig(level=logging.WARNING)
 import uuid
@@ -148,7 +148,6 @@ def train(POP3d=False, *,
         policy.eval()
         for _ in range(512):
             # Use policy
-            obs = kornia.color_jitter(obs)
             action, log_prob, value = policy.act(obs)
 
             # Take step in environment
@@ -170,11 +169,18 @@ def train(POP3d=False, *,
     obs = env.reset()
     step = 0
     logging.debug('Entering main loop')
+    augmentation = nn.Sequential(
+        # RandomCrop((64,64)),
+        ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.),
+    )
     while step < total_steps:
         # Use policy to collect data for num_steps steps
         policy.eval()
         logging.debug('Policy eval')
         for _ in range(num_steps):
+            # Apply augmentation
+            obs = augmentation.apply(obs)
+
             # Use policy
             action, log_prob, value = policy.act(obs)
             
