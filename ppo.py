@@ -31,7 +31,6 @@ DEFAULT_ARGS = {
     "grad_eps": .5,
     "value_coef": .1,
     "entropy_coef": .01,
-    "use_impala": True,
     "env_name": "starpilot",
 }
 
