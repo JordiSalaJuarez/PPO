@@ -11,7 +11,8 @@ from pathlib import Path
 from datetime import datetime
 import json
 import imageio
-from kornia.augmentation import RandomCrop, ColorJitter
+from augmentation import RandomConvolution
+from kornia.augmentation import RandomCrop, ColorJitter, RandomVerticalFlip, RandomHorizontalFlip
 import logging
 logging.basicConfig(level=logging.WARNING)
 import uuid
@@ -61,12 +62,18 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
         help="Coefficient in policy entropy")
     parser.add_argument("--use_impala", action="store_true",
         help="Use impala architecture")
+    parser.add_argument("--do_crop", action="store_true",
+        help="Apply crop image augmentation")
+    parser.add_argument("--do_flip", action="store_true",
+        help="Apply flip image augmentation")
+    parser.add_argument("--do_jitter", action="store_true",
+        help="Apply jitter image augmentation")
     parser.add_argument("--env_name", type=str, default=DEFAULT_ARGS["env_name"],
         help="Name of the game used for training")
 
     return parser.parse_args().__dict__
 
-def train(POP3d=False, *,     
+def train(POP3d=False, do_conv=False, *,     
     total_steps: int,
     num_envs: int,
     num_levels: int,
@@ -80,6 +87,9 @@ def train(POP3d=False, *,
     entropy_coef: float,
     use_impala: bool,
     env_name: str,
+    do_crop: bool,
+    do_flip: bool,
+    do_jitter: bool,
     ):
 
     tag = uuid.uuid1()
@@ -97,7 +107,10 @@ def train(POP3d=False, *,
                   'value_coef': value_coef,
                   'entropy_coef': entropy_coef,
                   'use_impala': use_impala,
-                  'env_name': env_name}
+                  'env_name': env_name,
+                  'do_crop': do_crop,
+                  'do_flip': do_flip,
+                  'do_jitter': do_jitter}
 
     # Save hyperparams in json file, associated to test trough tag
     with open(f'results/hyperparameters_{tag}.json', 'w') as outfile:
@@ -169,10 +182,14 @@ def train(POP3d=False, *,
     obs = env.reset()
     step = 0
     logging.debug('Entering main loop')
-    augmentation = nn.Sequential(
-        # RandomCrop((64,64)),
-        ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.),
+    augmentation_set = (
+        (do_conv, RandomConvolution()),
+        (do_crop, RandomCrop((32,32))),
+        (do_flip, RandomHorizontalFlip()),
+        (do_flip, RandomVerticalFlip()),
+        (do_jitter, ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.0)),
     )
+    augmentation = nn.Sequential(*(action for do_action, action in augmentation_set if do_action ))
     while step < total_steps:
         # Use policy to collect data for num_steps steps
         policy.eval()
