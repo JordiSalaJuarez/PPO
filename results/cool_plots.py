@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 def get_plot(game_name):
 
     base_paths = list(Path(os.getcwd()).glob(f"results/base_all_games/data_{game_name}*.csv"))
-    df_base = pd.read_csv(base_paths[0]).assign(model='base')
+    df_base = pd.read_csv(base_paths[0]).assign(model='NatureDQN')
 
     impala_paths = list(Path(os.getcwd()).glob(f"results/impala_all_games/data_{game_name}*.csv"))
-    df_impala = pd.read_csv(impala_paths[0]).assign(model='impala')
+    df_impala = pd.read_csv(impala_paths[0]).assign(model='IMPALA')
 
     # Stack
     df_result = df_base.append(df_impala).reset_index(drop=True)
