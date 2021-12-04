@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 import json
 import imageio
+import numpy as np
 
 import logging
 logging.basicConfig(level=logging.WARNING)
@@ -21,9 +22,9 @@ from argparse import ArgumentParser
 
 DEFAULT_ARGS = {
     "total_steps": 8_000_000,
-    "num_envs": 32,
-    "num_levels": 500,
-    "num_steps": 256,
+    "num_envs": 16,
+    "num_levels": 250,
+    "num_steps": 1024,
     "num_epochs": 3,
     "n_features": 256,
     "batch_size": 512,
@@ -254,7 +255,8 @@ def train(POP3d=False, *,
                 "mean_reward": float(storage.get_reward()),
                 "reward": float(storage.get_reward(normalized_reward=False)),
                 "step": step,
-                "time": (datetime.now() - start).total_seconds()
+                "time": (datetime.now() - start).total_seconds(),
+                "loss": float(np.mean(np.array(loss.cpu().data.numpy())))
             }
         )
     print('Completed training!')
