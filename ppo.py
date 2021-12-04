@@ -35,6 +35,8 @@ DEFAULT_ARGS = {
     "env_name": "starpilot",
 }
 
+SHAPE_CROP = (40,40)
+
 
 def parse_args() -> "dict[str, int | float | bool | str]" :
     parser = ArgumentParser()
@@ -70,10 +72,12 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
         help="Apply jitter image augmentation")
     parser.add_argument("--env_name", type=str, default=DEFAULT_ARGS["env_name"],
         help="Name of the game used for training")
+    parser.add_argument("--use_backgrounds", action="store_true",
+        help="Use background for training")
 
     return parser.parse_args().__dict__
 
-def train(POP3d=False, do_conv=False, *,     
+def train(POP3d=False, *,     
     total_steps: int,
     num_envs: int,
     num_levels: int,
@@ -90,6 +94,7 @@ def train(POP3d=False, do_conv=False, *,
     do_crop: bool,
     do_flip: bool,
     do_jitter: bool,
+    use_backgrounds: bool,
     ):
 
     tag = uuid.uuid1()
@@ -110,23 +115,32 @@ def train(POP3d=False, do_conv=False, *,
                   'env_name': env_name,
                   'do_crop': do_crop,
                   'do_flip': do_flip,
-                  'do_jitter': do_jitter}
+                  'do_jitter': do_jitter,
+                  'use_backgrounds': use_backgrounds}
+
+    assert not(do_crop and use_impala), "Cannot run this configuration"
+    # do_crop = True
+    do_conv = True
+    base_path = Path("results") / f"{env_name}_{num_levels}_{'impala' if use_impala else 'base'}_{tag}"
+    base_path.mkdir(parents=True, exist_ok=True)
 
     # Save hyperparams in json file, associated to test trough tag
-    with open(f'results/hyperparameters_{tag}.json', 'w') as outfile:
+    with open(base_path / "hyperparameters.json", 'w') as outfile:
         json.dump(parameters, outfile, indent=4)
 
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
-    eval_env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
+    env = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
+    eval_env = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
 
     # Define network
-    in_channels = env.observation_space.shape[0]
+    in_channels, w, h = env.observation_space.shape
+    if do_crop:
+        w, h = SHAPE_CROP
     if use_impala:
         encoder = ImpalaModel(in_channels, n_features)
     else:
-        encoder = Encoder(in_channels, n_features)
+        encoder = Encoder(in_channels, n_features, w, h)
     policy = Policy(encoder, n_features, env.action_space.n)
     policy.cuda()
 
@@ -137,22 +151,15 @@ def train(POP3d=False, do_conv=False, *,
     # Define temporary storage
     # we use this to collect transitions during each iteration
     storage = Storage(
-        env.observation_space.shape,
+        (in_channels, w, h),
         num_steps,
         num_envs
     )
 
-
-    base_path = "results"
-    if use_impala:
-        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
-    else:
-        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
-
-    logger = CSVOutputFormat(target_csv)
+    logger = CSVOutputFormat(base_path / "data.csv")
 
 
-    def save_clip(name, policy):
+    def save_clip(path, policy):
         obs = eval_env.reset()
         frames = []
         total_reward = []
@@ -176,28 +183,31 @@ def train(POP3d=False, do_conv=False, *,
 
         # Save frames as video
         frames = torch.stack(frames)
-        imageio.mimsave(f'{base_path}/{name}.mp4', frames, fps=25)
+        imageio.mimsave(f'{path}.mp4', frames, fps=25)
 
-    # Run training
-    obs = env.reset()
-    step = 0
-    logging.debug('Entering main loop')
+
     augmentation_set = (
-        (do_conv, RandomConvolution()),
-        (do_crop, RandomCrop((32,32))),
+        (do_crop, RandomCrop(SHAPE_CROP)),
         (do_flip, RandomHorizontalFlip()),
         (do_flip, RandomVerticalFlip()),
         (do_jitter, ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.0)),
     )
     augmentation = nn.Sequential(*(action for do_action, action in augmentation_set if do_action ))
+   
+
+    # Run training
+    obs = env.reset()
+
+    # Apply augmentation
+    obs = augmentation(obs)
+
+    step = 0
+    logging.debug('Entering main loop')
     while step < total_steps:
         # Use policy to collect data for num_steps steps
         policy.eval()
         logging.debug('Policy eval')
         for _ in range(num_steps):
-            # Apply augmentation
-            obs = augmentation.apply(obs)
-
             # Use policy
             action, log_prob, value = policy.act(obs)
             
@@ -210,9 +220,12 @@ def train(POP3d=False, do_conv=False, *,
             # Update current observation
             obs = next_obs
 
+            # Apply augmentation
+            obs = augmentation(obs)
+
 
         if step % 1_000_000 == 0 and step > 0:
-            save_clip(f"clip_{env_name}_{num_levels}_{tag}_{step//1_000_000}", policy)
+            save_clip(base_path / f"clip_{step//1_000_000}", policy)
 
         # Add the last observation to collected data
         _, _, value = policy.act(obs)
@@ -252,15 +265,7 @@ def train(POP3d=False, do_conv=False, *,
                 # Entropy loss
                 entropy_loss = new_dist.entropy().mean()
 
-                # PPO3d
-                if POP3d:
-                    loss_pg = (b_log_prob * b_advantage).mean()
-                    pg_coef = 0.1
-                    loss = pi_loss - entropy_coef*entropy_loss + value_coef*value_loss + loss_pg * pg_coef
-                    # loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss
-                else:
-                    # Backpropagate losses
-                    loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
+                loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
                 loss.backward()
 
                 # Clip gradients
@@ -282,10 +287,7 @@ def train(POP3d=False, do_conv=False, *,
             }
         )
     print('Completed training!')
-    if use_impala:
-        torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_impala_{tag}.pt')
-    else:
-        torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_{tag}.pt')
+    torch.save(policy.state_dict, base_path / f'checkpoint.pt')
 
 
 if __name__ == "__main__":

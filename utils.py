@@ -13,11 +13,17 @@ import torch.nn as nn
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 from procgen import ProcgenEnv
 from collections import deque
-
+from functools import reduce
 """
 Utility functions for the deep RL projects that I supervise in 02456 Deep Learning @ DTU.
 """
 
+
+def conv_shape(x, kernel_size=1, padding=0, stride=1, dilation=1):
+  return int((x + 2*padding - dilation*(kernel_size - 1) - 1)/stride + 1)
+
+def conv_seq_shape(size, seq):
+	return reduce(lambda acc, conv: conv_shape(acc, **conv), seq, size)
 
 def make_env(
 	n_envs=32,

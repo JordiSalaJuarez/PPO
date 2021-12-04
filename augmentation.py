@@ -11,7 +11,6 @@ class RandomConvolution(nn.Module):
         
         (imbs): B x (C x stack) x H x W, note: imgs should be normalized and torch tensor
         '''
-        _device = imgs.device
         
         img_h, img_w = imgs.shape[2], imgs.shape[3]
         num_stack_channel = imgs.shape[1]
@@ -20,7 +19,7 @@ class RandomConvolution(nn.Module):
         batch_size = int(num_batch / num_trans)
         
         # initialize random covolution
-        rand_conv = nn.Conv2d(3, 3, kernel_size=3, bias=False, padding=1).to(_device)
+        rand_conv = nn.Conv2d(3, 3, kernel_size=3, bias=False, padding=1)
         
         for trans_index in range(num_trans):
             torch.nn.init.xavier_normal_(rand_conv.weight.data)
