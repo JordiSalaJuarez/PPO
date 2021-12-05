@@ -27,10 +27,11 @@ mean_reward = []
 reward = []
 steps = []
 
+fig = plt.figure(figsize=(8,6), dpi=144)
 
 
 #### PLOT GAME 1 - STARPILOT #####
-for path_csv in Path(os.getcwd()).glob("data_starpilot_500*.csv"):
+for path_csv in Path(os.getcwd()).glob("results/Hyperparam_compare_plots/data_starpilot_500*.csv"):
     print(path_csv)
     df = pd.read_csv(path_csv).to_numpy()
 #     mean_reward.append(df.iloc[:,0].to_numpy())
@@ -41,7 +42,7 @@ for path_csv in Path(os.getcwd()).glob("data_starpilot_500*.csv"):
     reward.append(df[:,1])
     steps.append(df[:,2])
 
-for path_csv in Path(os.getcwd()).glob("data_starpilot_250*.csv"):
+for path_csv in Path(os.getcwd()).glob("results/Hyperparam_compare_plots/data_starpilot_250*.csv"):
     print(path_csv)
     df = pd.read_csv(path_csv).to_numpy()
 #     mean_reward.append(df.iloc[:,0].to_numpy())
@@ -61,32 +62,18 @@ for path_csv in Path(os.getcwd()).glob("data_starpilot_250*.csv"):
 # steps[5] = steps[5]*4
 # =============================================================================
 
+plt.plot(steps[2], sliding_mean(mean_reward[2]), color="#8e7cc3", label="NatureDQN, 1024 steps")
+plt.plot(steps[5], sliding_mean(mean_reward[5]),color="#a64d79", label="IMPALA, 1024 steps")
 
-# Standard structure
-#l1 = sns_plot = sns.lineplot(x=steps[0], y=mean_reward[0])
-l2 = sns_plot = sns.lineplot(x=steps[0], y=sliding_mean(mean_reward[0]))
-#l3 = sns_plot = sns.lineplot(x=steps[2], y=mean_reward[2])
-l4 = sns_plot = sns.lineplot(x=steps[1], y=sliding_mean(mean_reward[1]))
-#l5 = sns_plot = sns.lineplot(x=steps[4], y=mean_reward[4])
-l6 = sns_plot = sns.lineplot(x=steps[2], y=sliding_mean(mean_reward[2]))
+plt.plot(steps[0], sliding_mean(mean_reward[0]), color="#e69138", label="NatureDQN, 512 steps")
+plt.plot(steps[1], sliding_mean(mean_reward[1]), color="#3d85c6", label="IMPALA, 512 steps")
 
-# IMPALA structure
-#l1imp = sns_plot = sns.lineplot(x=steps[1], y=mean_reward[1])
-l2imp = sns_plot = sns.lineplot(x=steps[3], y=sliding_mean(mean_reward[3]))
-#l3imp = sns_plot = sns.lineplot(x=steps[3], y=mean_reward[3])
-l4imp = sns_plot = sns.lineplot(x=steps[4], y=sliding_mean(mean_reward[4]))
-#l5imp = sns_plot = sns.lineplot(x=steps[5], y=mean_reward[5])
-l6imp = sns_plot = sns.lineplot(x=steps[5], y=sliding_mean(mean_reward[5]))
+plt.plot(steps[4], sliding_mean(mean_reward[4]),color="#da6552", label="NatureDQN, 128 steps")
+plt.plot(steps[3], sliding_mean(mean_reward[3]), color="#27A98E", label="IMPALA, 128 steps")
 
+plt.xlabel('steps')
+plt.ylabel('mean reward')
+plt.title('Comparing performance based on number of steps')
+plt.legend(loc="upper center", bbox_to_anchor=(0.5, 1.2), ncol=3)
 
-sns_plot.set_xlabel('Steps')
-sns_plot.set_ylabel('Score')
-sns_plot.set_title('Evolution of the score for StarPilot')
-
-fig = sns_plot.get_figure()
-plt.legend([l2, l4, l6, l2imp, l4imp, l6imp], labels=["MA-Mean reward", "MA-Mean reward Impala",
-                                                      "MA-Mean reward decrease", "MA-Mean reward decrease Impala",
-                                                      "MA-Mean reward increase", "MA-Mean reward increase Impala"
-                                                        ], loc = 2, bbox_to_anchor = (1,1))
-
-fig.savefig("StarPilot_Structure_Score_Comparison.png") 
+plt.savefig("StarPilot_Structure_Score_Comparison.png", bbox_inches='tight') 
