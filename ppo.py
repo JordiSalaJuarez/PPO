@@ -12,7 +12,7 @@ from datetime import datetime
 import json
 import imageio
 from augmentation import RandomConvolution
-from kornia.augmentation import RandomCrop, ColorJitter, RandomVerticalFlip, RandomHorizontalFlip
+from kornia.augmentation import RandomCrop, ColorJitter, RandomVerticalFlip, RandomHorizontalFlip, RandomGaussianNoise
 import logging
 logging.basicConfig(level=logging.WARNING)
 import uuid
@@ -70,6 +70,10 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
         help="Apply flip image augmentation")
     parser.add_argument("--do_jitter", action="store_true",
         help="Apply jitter image augmentation")
+    parser.add_argument("--same_on_batch", action="store_true",
+        help="Same on batch")
+    parser.add_argument("--do_gaussian_blur", action="store_true",
+        help="Do random gaussian blur")
     parser.add_argument("--env_name", type=str, default=DEFAULT_ARGS["env_name"],
         help="Name of the game used for training")
     parser.add_argument("--use_backgrounds", action="store_true",
@@ -95,6 +99,8 @@ def train(POP3d=False, *,
     do_flip: bool,
     do_jitter: bool,
     use_backgrounds: bool,
+    same_on_batch: bool,
+    do_gaussian_blur: bool,
     ):
 
     tag = uuid.uuid1()
@@ -116,7 +122,9 @@ def train(POP3d=False, *,
                   'do_crop': do_crop,
                   'do_flip': do_flip,
                   'do_jitter': do_jitter,
-                  'use_backgrounds': use_backgrounds}
+                  'do_gaussian_blur': do_gaussian_blur,
+                  'use_backgrounds': use_backgrounds,
+                  'same_on_batch': same_on_batch,}
 
     assert not(do_crop and use_impala), "Cannot run this configuration"
     # do_crop = True
@@ -187,10 +195,11 @@ def train(POP3d=False, *,
 
 
     augmentation_set = (
-        (do_crop, RandomCrop(SHAPE_CROP)),
-        (do_flip, RandomHorizontalFlip()),
-        (do_flip, RandomVerticalFlip()),
-        (do_jitter, ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.0)),
+        (do_crop, RandomCrop(SHAPE_CROP, same_on_batch=same_on_batch)),
+        (do_flip, RandomHorizontalFlip(same_on_batch=same_on_batch)),
+        (do_flip, RandomVerticalFlip(same_on_batch=same_on_batch)),
+        (do_gaussian_blur, RandomGaussianNoise(mean=0., std=1., p=1., same_on_batch=same_on_batch)),
+        (do_jitter, ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.0, same_on_batch=same_on_batch)),
     )
     augmentation = nn.Sequential(*(action for do_action, action in augmentation_set if do_action ))
    
@@ -224,7 +233,7 @@ def train(POP3d=False, *,
             obs = augmentation(obs)
 
 
-        if step % 1_000_000 == 0 and step > 0:
+        if (step % 1_000_000) == 0 and step > 0:
             save_clip(base_path / f"clip_{step//1_000_000}", policy)
 
         # Add the last observation to collected data
