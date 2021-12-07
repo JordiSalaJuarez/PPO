@@ -32,11 +32,11 @@ DEFAULT_ARGS = {
     "grad_eps": .5,
     "value_coef": .1,
     "entropy_coef": .01,
-    "env_name": "starpilot",
+    "env_name": "coinrun",
 }
 
 SHAPE_CROP = (40,40)
-
+VIDEO_RECORD_RATE = 1_000_000
 
 def parse_args() -> "dict[str, int | float | bool | str]" :
     parser = ArgumentParser()
@@ -102,11 +102,9 @@ def train(POP3d=False, *,
     same_on_batch: bool,
     do_gaussian_blur: bool,
     ):
-
     tag = uuid.uuid1()
     start = datetime.now()
     logging.debug('Started Training')
-
     parameters = {'total_steps': total_steps,
                   'num_envs': num_envs,
                   'num_levels': num_levels,
@@ -127,8 +125,7 @@ def train(POP3d=False, *,
                   'same_on_batch': same_on_batch,}
 
     assert not(do_crop and use_impala), "Cannot run this configuration"
-    # do_crop = True
-    do_conv = True
+
     base_path = Path("results") / f"{env_name}_{num_levels}_{'impala' if use_impala else 'base'}_{tag}"
     base_path.mkdir(parents=True, exist_ok=True)
 
@@ -210,6 +207,7 @@ def train(POP3d=False, *,
     # Apply augmentation
     obs = augmentation(obs)
 
+    saved_clips = [False] * (total_steps//VIDEO_RECORD_RATE + 1)
     step = 0
     logging.debug('Entering main loop')
     while step < total_steps:
@@ -233,8 +231,9 @@ def train(POP3d=False, *,
             obs = augmentation(obs)
 
 
-        if (step % 1_000_000) == 0 and step > 0:
-            save_clip(base_path / f"clip_{step//1_000_000}", policy)
+        if not saved_clips[step // VIDEO_RECORD_RATE]:
+            saved_clips[step // VIDEO_RECORD_RATE] = True
+            save_clip(base_path / f"clip_{step//VIDEO_RECORD_RATE}", policy)
 
         # Add the last observation to collected data
         _, _, value = policy.act(obs)
