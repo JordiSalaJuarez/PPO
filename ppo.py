@@ -31,6 +31,7 @@ DEFAULT_ARGS = {
     "grad_eps": .5,
     "value_coef": .1,
     "entropy_coef": .01,
+    "gamma": 0.99,
     "env_name": "starpilot",
 }
 
@@ -59,6 +60,8 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
         help="Coefficient in value objective function")
     parser.add_argument("--entropy_coef", type=float, default=DEFAULT_ARGS["entropy_coef"],
         help="Coefficient in policy entropy")
+    parser.add_argument("--gamma", type=float, default=DEFAULT_ARGS["gamma"],
+        help="Discount rate")     
     parser.add_argument("--use_impala", action="store_true",
         help="Use impala architecture")
     parser.add_argument("--env_name", type=str, default=DEFAULT_ARGS["env_name"],
@@ -74,6 +77,7 @@ def train(POP3d=False, *,
     num_epochs: int,
     n_features: int,
     batch_size: int,
+    gamma: int,
     eps: float,
     grad_eps: float,
     value_coef: float,
@@ -93,6 +97,7 @@ def train(POP3d=False, *,
                   'num_epochs': num_epochs,
                   'n_features': n_features,
                   'batch_size': batch_size,
+                  'gamma': gamma,
                   'eps': eps,
                   'value_coef': value_coef,
                   'entropy_coef': entropy_coef,
@@ -106,6 +111,10 @@ def train(POP3d=False, *,
     # Define environment
     # check the utils.py file for info on arguments
     env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
+
+    # define environment for validation
+    env_val = make_env(num_envs, env_name=env_name, num_levels=num_levels, start_level=10)
+
     eval_env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
 
     # Define network
@@ -126,7 +135,16 @@ def train(POP3d=False, *,
     storage = Storage(
         env.observation_space.shape,
         num_steps,
-        num_envs
+        num_envs,
+        gamma=gamma
+    )
+
+    # Define storage for validation
+    storage_val = Storage(
+        env_val.observation_space.shape, 
+        num_steps, 
+        num_envs, 
+        gamma=gamma
     )
 
 
@@ -167,6 +185,7 @@ def train(POP3d=False, *,
 
     # Run training
     obs = env.reset()
+    obs_val = env_val.reset()
     step = 0
     logging.debug('Entering main loop')
     while step < total_steps:
@@ -176,15 +195,19 @@ def train(POP3d=False, *,
         for _ in range(num_steps):
             # Use policy
             action, log_prob, value = policy.act(obs)
+            action_val, log_prob_val, value_val = policy.act(obs_val)
             
             # Take step in environment
             next_obs, reward, done, info = env.step(action)
+            next_obs_val, reward_val, done_val, info_val = env_val.step(action_val) 
 
             # Store data
             storage.store(obs, action, reward, done, info, log_prob, value)
+            storage_val.store(obs_val, action_val, reward_val, done_val, info_val, log_prob_val, value_val)
             
             # Update current observation
             obs = next_obs
+            obs_val = next_obs_val
 
 
         if step % 1_000_000 == 0 and step > 0:
@@ -251,8 +274,10 @@ def train(POP3d=False, *,
         print(f'Step: {step}\tMean reward: {storage.get_reward()}')
         logger.writekvs(
             {
-                "mean_reward": float(storage.get_reward()),
-                "reward": float(storage.get_reward(normalized_reward=False)),
+                "mean_train_reward": float(storage.get_reward()),
+                "mean_validation_reward": float(storage_val.get_reward()),
+                "train_reward": float(storage.get_reward(normalized_reward=False)),
+                "validation_reward": float(storage_val.get_reward(normalized_reward=False)),
                 "step": step,
                 "time": (datetime.now() - start).total_seconds()
             }
