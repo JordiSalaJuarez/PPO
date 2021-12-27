@@ -81,7 +81,7 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
 
     return parser.parse_args().__dict__
 
-def train(POP3d=False, *,     
+def train(*,     
     total_steps: int,
     num_envs: int,
     num_levels: int,
@@ -136,7 +136,7 @@ def train(POP3d=False, *,
     # Define environment
     # check the utils.py file for info on arguments
     env = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
-    eval_env = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
+    env_eval = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
 
     # Define network
     in_channels, w, h = env.observation_space.shape
@@ -161,11 +161,23 @@ def train(POP3d=False, *,
         num_envs
     )
 
-    logger = CSVOutputFormat(base_path / "data.csv")
+    storage_eval = Storage(
+        env.observation_space.shape,
+        num_steps,
+        num_envs
+    )
+
+    base_path = "results"
+    if use_impala:
+        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
+    else:
+        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
+
+    logger = CSVOutputFormat(target_csv)
 
 
     def save_clip(path, policy):
-        obs = eval_env.reset()
+        obs = env_eval.reset()
         frames = []
         total_reward = []
 
@@ -176,11 +188,11 @@ def train(POP3d=False, *,
             action, log_prob, value = policy.act(obs)
 
             # Take step in environment
-            obs, reward, done, info = eval_env.step(action)
+            obs, reward, done, info = env_eval.step(action)
             total_reward.append(torch.Tensor(reward))
 
             # Render environment and store
-            frame = (torch.Tensor(eval_env.render(mode='rgb_array'))*255.).byte()
+            frame = (torch.Tensor(env_eval.render(mode='rgb_array'))*255.).byte()
             frames.append(frame)
 
         # Calculate average return
@@ -203,9 +215,11 @@ def train(POP3d=False, *,
 
     # Run training
     obs = env.reset()
+    obs_eval = env_eval.reset()
 
     # Apply augmentation
     obs = augmentation(obs)
+    obs_eval = augmentation(obs_eval)
 
     saved_clips = [False] * (total_steps//VIDEO_RECORD_RATE + 1)
     step = 0
@@ -217,15 +231,19 @@ def train(POP3d=False, *,
         for _ in range(num_steps):
             # Use policy
             action, log_prob, value = policy.act(obs)
-            
+            action_eval, log_prob_eval, value_eval = policy.act(obs_eval)
+
             # Take step in environment
             next_obs, reward, done, info = env.step(action)
+            next_obs_eval, reward_eval, done_eval, info_eval = env_eval.step(action_eval)
 
             # Store data
             storage.store(obs, action, reward, done, info, log_prob, value)
+            storage_eval.store(obs_eval, action_eval, reward_eval, done_eval, info_eval, log_prob_eval, value_eval)
             
             # Update current observation
             obs = next_obs
+            obs_eval = next_obs_eval
 
             # Apply augmentation
             obs = augmentation(obs)
@@ -288,8 +306,10 @@ def train(POP3d=False, *,
         print(f'Step: {step}\tMean reward: {storage.get_reward()}')
         logger.writekvs(
             {
-                "mean_reward": float(storage.get_reward()),
-                "reward": float(storage.get_reward(normalized_reward=False)),
+                "normalized_reward_train": float(storage.get_reward()),
+                "reward_train": float(storage.get_reward(normalized_reward=False)),
+                "normalized_reward_test": float(storage_eval.get_reward()),
+                "reward_test": float(storage_eval.get_reward(normalized_reward=False)),
                 "step": step,
                 "time": (datetime.now() - start).total_seconds()
             }
