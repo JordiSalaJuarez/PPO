@@ -148,7 +148,7 @@ def train(POP3d=False, *,
     )
 
 
-    base_path = "results"
+    base_path = "validation_results"
     if use_impala:
         target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
     else:
