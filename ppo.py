@@ -162,7 +162,7 @@ def train(*,
     )
 
     storage_eval = Storage(
-        env.observation_space.shape,
+        (in_channels, w, h),
         num_steps,
         num_envs
     )
@@ -256,6 +256,8 @@ def train(*,
         # Add the last observation to collected data
         _, _, value = policy.act(obs)
         storage.store_last(obs, value)
+        _, _, value_eval = policy.act(obs_eval)
+        storage.store_last(obs_eval, value_eval)
 
         # Compute return and advantage
         storage.compute_return_advantage()
