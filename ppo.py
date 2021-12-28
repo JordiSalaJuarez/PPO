@@ -251,6 +251,7 @@ def train(*,
 
             # Apply augmentation
             obs = augmentation(obs)
+            obs_eval = augmentation(obs_eval)
 
 
         if not saved_clips[step // VIDEO_RECORD_RATE]:
