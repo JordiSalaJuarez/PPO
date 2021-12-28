@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+# from utils import conv_seq_shape
 """
 Used implementation from https://github.com/joonleesky/train-procgen-pytorch/blob/master/common/model.py
 """
@@ -47,11 +47,14 @@ class ImpalaModel(nn.Module):
                  in_channels,
                  feature_dim):
         super(ImpalaModel, self).__init__()
+        # seq_res = [dict(kernel_size=3, stride=1, padding=1)] * 2
+        # seq_block = [dict(kernel_size=3, stride=1, padding=1), dict(kernel_size=3, stride=2, padding=1)] + seq_res * 2
+        # seq = seq_block * 3
+        # in_linear = conv_seq_shape(w, seq) * conv_seq_shape(h, seq) * 32
         self.block1 = ImpalaBlock(in_channels=in_channels, out_channels=16)
         self.block2 = ImpalaBlock(in_channels=16, out_channels=32)
         self.block3 = ImpalaBlock(in_channels=32, out_channels=32)
         self.fc = nn.Linear(in_features=32 * 8 * 8, out_features=feature_dim)
-
         self.output_dim = 256
         self.apply(xavier_uniform_init)
 

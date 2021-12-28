@@ -11,7 +11,8 @@ from pathlib import Path
 from datetime import datetime
 import json
 import imageio
-
+from augmentation import RandomConvolution
+from kornia.augmentation import RandomCrop, ColorJitter, RandomVerticalFlip, RandomHorizontalFlip, RandomGaussianNoise
 import logging
 logging.basicConfig(level=logging.WARNING)
 import uuid
@@ -31,9 +32,16 @@ DEFAULT_ARGS = {
     "grad_eps": .5,
     "value_coef": .1,
     "entropy_coef": .01,
-    "env_name": "starpilot",
+    "env_name": "coinrun",
 }
 
+# Seeds used for the enviroments
+SEED_TRAIN = 0
+SEED_EVAL = 1
+
+# Properties for the image augmentation
+SHAPE_CROP = (40,40)
+VIDEO_RECORD_RATE = 1_000_000
 
 def parse_args() -> "dict[str, int | float | bool | str]" :
     parser = ArgumentParser()
@@ -61,12 +69,24 @@ def parse_args() -> "dict[str, int | float | bool | str]" :
         help="Coefficient in policy entropy")
     parser.add_argument("--use_impala", action="store_true",
         help="Use impala architecture")
+    parser.add_argument("--do_crop", action="store_true",
+        help="Apply crop image augmentation")
+    parser.add_argument("--do_flip", action="store_true",
+        help="Apply flip image augmentation")
+    parser.add_argument("--do_jitter", action="store_true",
+        help="Apply jitter image augmentation")
+    parser.add_argument("--same_on_batch", action="store_true",
+        help="Same on batch")
+    parser.add_argument("--do_gaussian_blur", action="store_true",
+        help="Do random gaussian blur")
     parser.add_argument("--env_name", type=str, default=DEFAULT_ARGS["env_name"],
         help="Name of the game used for training")
+    parser.add_argument("--use_backgrounds", action="store_true",
+        help="Use background for training")
 
     return parser.parse_args().__dict__
 
-def train(POP3d=False, *,     
+def train(*,     
     total_steps: int,
     num_envs: int,
     num_levels: int,
@@ -80,12 +100,16 @@ def train(POP3d=False, *,
     entropy_coef: float,
     use_impala: bool,
     env_name: str,
+    do_crop: bool,
+    do_flip: bool,
+    do_jitter: bool,
+    use_backgrounds: bool,
+    same_on_batch: bool,
+    do_gaussian_blur: bool,
     ):
-
     tag = uuid.uuid1()
     start = datetime.now()
     logging.debug('Started Training')
-
     parameters = {'total_steps': total_steps,
                   'num_envs': num_envs,
                   'num_levels': num_levels,
@@ -97,23 +121,36 @@ def train(POP3d=False, *,
                   'value_coef': value_coef,
                   'entropy_coef': entropy_coef,
                   'use_impala': use_impala,
-                  'env_name': env_name}
+                  'env_name': env_name,
+                  'do_crop': do_crop,
+                  'do_flip': do_flip,
+                  'do_jitter': do_jitter,
+                  'do_gaussian_blur': do_gaussian_blur,
+                  'use_backgrounds': use_backgrounds,
+                  'same_on_batch': same_on_batch,}
+
+    assert not(do_crop and use_impala), "Cannot run this configuration"
+
+    base_path = Path("results") / f"{env_name}_{num_levels}_{'impala' if use_impala else 'base'}_{tag}"
+    base_path.mkdir(parents=True, exist_ok=True)
 
     # Save hyperparams in json file, associated to test trough tag
-    with open(f'results/hyperparameters_{tag}.json', 'w') as outfile:
+    with open(base_path / "hyperparameters.json", 'w') as outfile:
         json.dump(parameters, outfile, indent=4)
 
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
-    eval_env = make_env(num_envs,env_name=env_name, num_levels=num_levels)
+    env = make_env(num_envs,env_name=env_name, start_level=SEED_TRAIN, num_levels=num_levels, use_backgrounds=use_backgrounds)
+    env_eval = make_env(num_envs,env_name=env_name, start_level=SEED_EVAL,num_levels=num_levels, use_backgrounds=use_backgrounds)
 
     # Define network
-    in_channels = env.observation_space.shape[0]
+    in_channels, w, h = env.observation_space.shape
+    if do_crop:
+        w, h = SHAPE_CROP
     if use_impala:
         encoder = ImpalaModel(in_channels, n_features)
     else:
-        encoder = Encoder(in_channels, n_features)
+        encoder = Encoder(in_channels, n_features, w, h)
     policy = Policy(encoder, n_features, env.action_space.n)
     policy.cuda()
 
@@ -124,23 +161,27 @@ def train(POP3d=False, *,
     # Define temporary storage
     # we use this to collect transitions during each iteration
     storage = Storage(
-        env.observation_space.shape,
+        (in_channels, w, h),
         num_steps,
         num_envs
     )
 
+    storage_eval = Storage(
+        (in_channels, w, h),
+        num_steps,
+        num_envs
+    )
 
-    base_path = "results"
     if use_impala:
-        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
+        target_csv = base_path / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
     else:
-        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
+        target_csv = base_path / f"data_{env_name}_{num_levels}_{tag}.csv"
 
     logger = CSVOutputFormat(target_csv)
 
 
-    def save_clip(name, policy):
-        obs = eval_env.reset()
+    def save_clip(path, policy):
+        obs = env_eval.reset()
         frames = []
         total_reward = []
 
@@ -151,11 +192,11 @@ def train(POP3d=False, *,
             action, log_prob, value = policy.act(obs)
 
             # Take step in environment
-            obs, reward, done, info = eval_env.step(action)
+            obs, reward, done, info = env_eval.step(action)
             total_reward.append(torch.Tensor(reward))
 
             # Render environment and store
-            frame = (torch.Tensor(eval_env.render(mode='rgb_array'))*255.).byte()
+            frame = (torch.Tensor(env_eval.render(mode='rgb_array'))*255.).byte()
             frames.append(frame)
 
         # Calculate average return
@@ -163,10 +204,28 @@ def train(POP3d=False, *,
 
         # Save frames as video
         frames = torch.stack(frames)
-        imageio.mimsave(f'{base_path}/{name}.mp4', frames, fps=25)
+        imageio.mimsave(f'{path}.mp4', frames, fps=25)
+
+
+    augmentation_set = (
+        (do_crop, RandomCrop(SHAPE_CROP, same_on_batch=same_on_batch)),
+        (do_flip, RandomHorizontalFlip(same_on_batch=same_on_batch)),
+        (do_flip, RandomVerticalFlip(same_on_batch=same_on_batch)),
+        (do_gaussian_blur, RandomGaussianNoise(mean=0., std=1., p=1., same_on_batch=same_on_batch)),
+        (do_jitter, ColorJitter(0.1, 0.1, 0.1, 0.1, p=1.0, same_on_batch=same_on_batch)),
+    )
+    augmentation = nn.Sequential(*(action for do_action, action in augmentation_set if do_action ))
+   
 
     # Run training
     obs = env.reset()
+    obs_eval = env_eval.reset()
+
+    # Apply augmentation
+    obs = augmentation(obs)
+    obs_eval = augmentation(obs_eval)
+
+    saved_clips = [False] * (total_steps//VIDEO_RECORD_RATE + 1)
     step = 0
     logging.debug('Entering main loop')
     while step < total_steps:
@@ -176,23 +235,33 @@ def train(POP3d=False, *,
         for _ in range(num_steps):
             # Use policy
             action, log_prob, value = policy.act(obs)
-            
+            action_eval, log_prob_eval, value_eval = policy.act(obs_eval)
+
             # Take step in environment
             next_obs, reward, done, info = env.step(action)
+            next_obs_eval, reward_eval, done_eval, info_eval = env_eval.step(action_eval)
 
             # Store data
             storage.store(obs, action, reward, done, info, log_prob, value)
+            storage_eval.store(obs_eval, action_eval, reward_eval, done_eval, info_eval, log_prob_eval, value_eval)
             
             # Update current observation
             obs = next_obs
+            obs_eval = next_obs_eval
+
+            # Apply augmentation
+            obs = augmentation(obs)
 
 
-        if step % 1_000_000 == 0 and step > 0:
-            save_clip(f"clip_{env_name}_{num_levels}_{tag}_{step//1_000_000}", policy)
+        if not saved_clips[step // VIDEO_RECORD_RATE]:
+            saved_clips[step // VIDEO_RECORD_RATE] = True
+            save_clip(base_path / f"clip_{step//VIDEO_RECORD_RATE}", policy)
 
         # Add the last observation to collected data
         _, _, value = policy.act(obs)
         storage.store_last(obs, value)
+        _, _, value_eval = policy.act(obs_eval)
+        storage_eval.store_last(obs_eval, value_eval)
 
         # Compute return and advantage
         storage.compute_return_advantage()
@@ -228,15 +297,7 @@ def train(POP3d=False, *,
                 # Entropy loss
                 entropy_loss = new_dist.entropy().mean()
 
-                # PPO3d
-                if POP3d:
-                    loss_pg = (b_log_prob * b_advantage).mean()
-                    pg_coef = 0.1
-                    loss = pi_loss - entropy_coef*entropy_loss + value_coef*value_loss + loss_pg * pg_coef
-                    # loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss
-                else:
-                    # Backpropagate losses
-                    loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
+                loss = pi_loss + value_coef*value_loss - entropy_coef*entropy_loss # as defined at https://github.com/DarylRodrigo/rl_lib/blob/f165aabb328cb5c798360640fcef58792a72ae8a/PPO/PPO.py#L97
                 loss.backward()
 
                 # Clip gradients
@@ -251,17 +312,16 @@ def train(POP3d=False, *,
         print(f'Step: {step}\tMean reward: {storage.get_reward()}')
         logger.writekvs(
             {
-                "mean_reward": float(storage.get_reward()),
-                "reward": float(storage.get_reward(normalized_reward=False)),
+                "normalized_reward_train": float(storage.get_reward()),
+                "reward_train": float(storage.get_reward(normalized_reward=False)),
+                "normalized_reward_test": float(storage_eval.get_reward()),
+                "reward_test": float(storage_eval.get_reward(normalized_reward=False)),
                 "step": step,
                 "time": (datetime.now() - start).total_seconds()
             }
         )
     print('Completed training!')
-    if use_impala:
-        torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_impala_{tag}.pt')
-    else:
-        torch.save(policy.state_dict, Path(base_path) / f'checkpoint_{env_name}_{num_levels}_{tag}.pt')
+    torch.save(policy.state_dict, base_path / f'checkpoint.pt')
 
 
 if __name__ == "__main__":

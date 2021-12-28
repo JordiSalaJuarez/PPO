@@ -8,6 +8,7 @@ authors = ["JordiSalaJuarez <jordisalajuarez@gmail.com>"]
 python = "^3.8"
 procgen = "^0.10.4"
 torch = "^1.10.0"
+kornia = "^0.6.1"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^4.0.1"
