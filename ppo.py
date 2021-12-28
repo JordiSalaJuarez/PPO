@@ -264,11 +264,8 @@ def train(*,
         _, _, value_eval = policy.act(obs_eval)
         storage_eval.store_last(obs_eval, value_eval)
 
-        _, _, value_val = policy.act(obs_eval)
-        storage_eval.store_last(obs_eval, value_val)
         # Compute return and advantage
         storage.compute_return_advantage()
-        storage_eval.compute_return_advantage()
 
         # Optimize policy
         policy.train()
