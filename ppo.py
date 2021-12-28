@@ -172,11 +172,10 @@ def train(*,
         num_envs
     )
 
-    base_path = "results"
     if use_impala:
-        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
+        target_csv = base_path / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
     else:
-        target_csv = Path(base_path) / f"data_{env_name}_{num_levels}_{tag}.csv"
+        target_csv = base_path / f"data_{env_name}_{num_levels}_{tag}.csv"
 
     logger = CSVOutputFormat(target_csv)
 
