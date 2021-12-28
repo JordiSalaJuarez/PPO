@@ -162,7 +162,7 @@ def train(*,
     )
 
     storage_eval = Storage(
-        env.observation_space.shape,
+        (in_channels, w, h),
         num_steps,
         num_envs
     )
