@@ -35,6 +35,11 @@ DEFAULT_ARGS = {
     "env_name": "coinrun",
 }
 
+# Seeds used for the enviroments
+SEED_TRAIN = 0
+SEED_EVAL = 1
+
+# Properties for the image augmentation
 SHAPE_CROP = (40,40)
 VIDEO_RECORD_RATE = 1_000_000
 
@@ -135,8 +140,8 @@ def train(*,
 
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
-    env_eval = make_env(num_envs,env_name=env_name, num_levels=num_levels, use_backgrounds=use_backgrounds)
+    env = make_env(num_envs,env_name=env_name, start_level=SEED_TRAIN, num_levels=num_levels, use_backgrounds=use_backgrounds)
+    env_eval = make_env(num_envs,env_name=env_name, start_level=SEED_EVAL,num_levels=num_levels, use_backgrounds=use_backgrounds)
 
     # Define network
     in_channels, w, h = env.observation_space.shape
