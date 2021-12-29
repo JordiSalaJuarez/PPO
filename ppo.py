@@ -182,6 +182,7 @@ def train(*,
 
     def save_clip(path, policy):
         obs = env_eval.reset()
+        obs = augmentation(obs)
         frames = []
         total_reward = []
 
@@ -198,6 +199,7 @@ def train(*,
             # Render environment and store
             frame = (torch.Tensor(env_eval.render(mode='rgb_array'))*255.).byte()
             frames.append(frame)
+            obs = augmentation(obs)
 
         # Calculate average return
         total_reward = torch.stack(total_reward).sum(0).mean(0)
@@ -251,6 +253,7 @@ def train(*,
 
             # Apply augmentation
             obs = augmentation(obs)
+            obs_eval = augmentation(obs_eval)
 
 
         if not saved_clips[step // VIDEO_RECORD_RATE]:
