@@ -1,0 +1,60 @@
+Loaded dependency [python3/3.8.11]: gcc/10.3.0-binutils-2.36.1
+Loaded module: python3/3.8.11
+
+Switching from python3/3.8.11 to python3/3.8.11
+  Loading requirement: gcc/10.3.0-binutils-2.36.1
+Loaded module: cuda/8.0
+Loaded module: cudnn/v7.0-prod-cuda8
+Loaded module: ffmpeg/4.2.2
+
+  FileNotFoundError
+
+  [Errno 2] No such file or directory: b'./-m'
+
+  at /appl/python/3.8.11/lib/python3.8/os.py:601 in _execvpe
+       597│         path_list = map(fsencode, path_list)
+       598│     for dir in path_list:
+       599│         fullname = path.join(dir, file)
+       600│         try:
+    →  601│             exec_func(fullname, *argrest)
+       602│         except (FileNotFoundError, NotADirectoryError) as e:
+       603│             last_exc = e
+       604│         except OSError as e:
+       605│             last_exc = e
+
+------------------------------------------------------------
+Sender: LSF System <lsfadmin@hpc.dtu.dk>
+Subject: Job 11796610: <NONAME> in cluster <dcc> Exited
+
+Job <NONAME> was submitted from host <gbarlogin2> by user <s174428> in cluster <dcc> at Mon Dec 27 22:33:17 2021
+Job was executed on host(s) <n-62-31-22>, in queue <hpc>, as user <s174428> in cluster <dcc> at Mon Dec 27 22:33:19 2021
+</zhome/05/e/126946> was used as the home directory.
+</zhome/05/e/126946/PPO> was used as the working directory.
+Started at Mon Dec 27 22:33:19 2021
+Terminated at Mon Dec 27 22:33:22 2021
+Results reported at Mon Dec 27 22:33:22 2021
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+poetry run -m ppo --env_name coinrun
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1.18 sec.
+    Max Memory :                                 -
+    Average Memory :                             -
+    Total Requested Memory :                     1024.00 MB
+    Delta Memory :                               -
+    Max Swap :                                   -
+    Max Processes :                              -
+    Max Threads :                                -
+    Run time :                                   3 sec.
+    Turnaround time :                            5 sec.
+
+The output (if any) is above this job summary.
+
