@@ -12,7 +12,8 @@ def get_plot():
         name = str(csv)
         return name.split('/')[-1].split('_')[1]
 
-    csv = list(Path(os.getcwd()).glob(f"jobs/all_results/impala/*.csv"))
+    csv = list(Path(os.getcwd()).glob(f"jobs/architecture_comparison/impala/*.csv"))
+    csv.sort()
     plt.gcf().subplots_adjust(bottom=0.15)
 
     fig, axes = plt.subplots(1, 4, sharex=True, figsize=(20,4))
@@ -30,12 +31,12 @@ def get_plot():
         axes[i].set_ylabel('')    
         axes[i].set_xlabel('')
 
+    axes[0].set_ylabel('normalized reward')
     handles, labels = axes[3].get_legend_handles_labels()
     fig.legend(handles, labels, loc='upper right') 
     fig.supxlabel('step')
-    fig.supylabel('normalized reward')
 
-    plt.show()
-    #plt.savefig(f'nature.png')
+    # plt.show()
+    plt.savefig(f'impala.png', bbox_inches='tight')
 
 get_plot()
