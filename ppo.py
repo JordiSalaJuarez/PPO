@@ -140,8 +140,8 @@ def train(*,
 
     # Define environment
     # check the utils.py file for info on arguments
-    env = make_env(num_envs,env_name=env_name, start_level=SEED_TRAIN, num_levels=num_levels, use_backgrounds=use_backgrounds)
-    env_eval = make_env(num_envs,env_name=env_name, start_level=SEED_EVAL,num_levels=num_levels, use_backgrounds=use_backgrounds)
+    env = make_env(num_envs,env_name=env_name, start_level=SEED_TRAIN*num_levels, num_levels=num_levels, use_backgrounds=use_backgrounds, seed=SEED_TRAIN)
+    env_eval = make_env(num_envs,env_name=env_name, start_level=SEED_EVAL*num_levels,num_levels=num_levels, use_backgrounds=use_backgrounds, seed=SEED_EVAL)
 
     # Define network
     in_channels, w, h = env.observation_space.shape
@@ -172,13 +172,7 @@ def train(*,
         num_envs
     )
 
-    if use_impala:
-        target_csv = base_path / f"data_{env_name}_{num_levels}_impala_{tag}.csv"
-    else:
-        target_csv = base_path / f"data_{env_name}_{num_levels}_{tag}.csv"
-
-    logger = CSVOutputFormat(target_csv)
-
+    logger = CSVOutputFormat(base_path / "data.csv")
 
     def save_clip(path, policy):
         obs = env_eval.reset()
