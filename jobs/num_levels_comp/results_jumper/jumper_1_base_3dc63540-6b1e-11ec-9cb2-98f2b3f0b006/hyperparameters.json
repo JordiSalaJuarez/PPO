@@ -1,0 +1,20 @@
+{
+    "total_steps": 8000000,
+    "num_envs": 32,
+    "num_levels": 1,
+    "num_steps": 256,
+    "num_epochs": 3,
+    "n_features": 256,
+    "batch_size": 512,
+    "eps": 0.2,
+    "value_coef": 0.1,
+    "entropy_coef": 0.01,
+    "use_impala": false,
+    "env_name": "jumper",
+    "do_crop": false,
+    "do_flip": false,
+    "do_jitter": false,
+    "do_gaussian_blur": false,
+    "use_backgrounds": true,
+    "same_on_batch": false
+}

@@ -8,4 +8,4 @@
  #BSUB -o logs/%J.out
  #BSUB -e logs/%J.err
  echo "Running script..."
- poetry run python -m ppo --env_name coinrun --use_backgrounds --do_gaussian_blur
+ poetry run python -m ppo --env_name ninja --use_backgrounds

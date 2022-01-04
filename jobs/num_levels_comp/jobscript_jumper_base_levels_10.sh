@@ -3,9 +3,9 @@
  #BSUB -gpu "num=1"
  #BSUB -J ppoRun
  #BSUB -n 1
- #BSUB -W 18:00
+ #BSUB -W 10:00
  #BSUB -R "rusage[mem=32GB]"
  #BSUB -o logs/%J.out
  #BSUB -e logs/%J.err
  echo "Running script..."
- poetry run python -m ppo --env_name coinrun --use_backgrounds --do_gaussian_blur
+ poetry run python -m ppo --env_name ninja --use_backgrounds --num_levels 10
